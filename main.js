@@ -3,12 +3,13 @@
  */
 function getRegionTags() {
   $('#t').remove();
-  $('body').append('<div id="t">Loading...</div>')
+  $('#t_wrapper').remove()
+  $('.main-content').append('<div id="t">Loading...</div>')
   $.ajax('tags.php?action=list&region=' + $('#region').val(), {
     dataType: 'json',
     success: function (data) {
       $('#t').remove();
-      $('body').append('<table id="t"><thead></thead></table>')
+      $('.main-content').append('<table id="t" class="table-bordered"><thead></thead></table>')
       $('#t > thead').append('<tr><td>Instance/Tag</td></tr>')
       // console.log(data)
       let num = 0;
@@ -45,58 +46,21 @@ function getRegionTags() {
           // console.log(data.instances[i], ii)
         }
       }
-      $('#byNU').click()
-      if($('#t thead tr td').index($("td:contains('NeededUntil')"))<0){
-        $('#byNU').hide()
-      }else {
-        $('#byNU').show()
-      }
+      $('#allDates').click()
       addEditBtns()
+      let indx=$('#t thead tr td').index($("td:contains('NeededUntil')"))
+      $('#t').dataTable({
+        order:[indx, 'asc'],
+        columnDefs: [
+          { "type": "mystring", "targets": indx }
+        ]
+      })
     },
     error:function(){
       $('#t').remove();
-      $('body').append('<div id="t">Something went wrong!</div>')
+      $('.main-content').append('<div id="t">Something went wrong!</div>')
     }
   })
-}
-
-function sortTable(id, col) {
-  if(col<0)return;
-  var table, rows, switching, i, x, y, shouldSwitch;
-  table = document.getElementById(id);
-  switching = true;
-  /* Make a loop that will continue until
-   no switching has been done: */
-  while (switching) {
-    // Start by saying: no switching is done:
-    switching = false;
-    rows = table.getElementsByTagName("TR");
-    /* Loop through all table rows (except the
-     first, which contains table headers): */
-    for (i = 1; i < (rows.length - 1); i++) {
-      // Start by saying there should be no switching:
-      shouldSwitch = false;
-      /* Get the two elements you want to compare,
-       one from current row and one from the next: */
-      x = rows[i].getElementsByTagName("TD")[col];
-      y = rows[i + 1].getElementsByTagName("TD")[col];
-      // Check if the two rows should switch place:
-      if(x===undefined || y===undefined){
-        break;
-      }
-      if (x.innerHTML.toLowerCase() > y.innerHTML.toLowerCase()) {
-        // If so, mark as a switch and break the loop:
-        shouldSwitch = true;
-        break;
-      }
-    }
-    if (shouldSwitch) {
-      /* If a switch has been marked, make the switch
-       and mark that a switch has been done: */
-      rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
-      switching = true;
-    }
-  }
 }
 
 function checkDates() {
@@ -112,8 +76,18 @@ function checkDates() {
       if(it.id=='validDates')$(b).show()
       if(it.id=='invalidDates')$(b).hide()
       if(it.id=='allDates')$(b).show()
+      console.log(new Date($(b).find('td:eq('+indx+')').text()))
+      console.log(new Date())
+      console.log(new Date($(b).find('td:eq('+indx+')').text())<new Date())
+      if(new Date($(b).find('td:eq('+indx+')').text())<new Date()){
+        $(b).addClass('table-danger')
+      }else if(new Date($(b).find('td:eq('+indx+')').text())<new Date(new Date().getTime() + 24 * 60 * 60 * 1000)){
+        $(b).addClass('table-warning')
+      }
     }
   })
+  $(this.parentNode).find('button').removeClass('active')
+  $(this).addClass('active')
 }
 
 function addEditBtns() {
@@ -146,7 +120,7 @@ function historyOfTag() {
     success:function(data){
       // console.log(data)
       for(var i in data){
-        $('#historyTable tbody').append('<tr><td>'+data[i][0]+'</td>'+'<td>'+data[i][2]+'</td>'+'<td>'+data[i][3]+'</td></tr>')
+        $('#historyTable tbody').append('<tr><td>'+data[i][0]+'</td>'+'<td>'+data[i][1]+'</td>'+'<td>'+data[i][2]+'</td>'+'<td>'+data[i][3]+'</td></tr>')
       }
       $('#historyLoader').hide();
     },
@@ -178,18 +152,37 @@ function changeDate() {
 $(document).ready(function() {
   getRegionTags();
   $('#region,#allTags').on('change', getRegionTags)
-  $('#byName').click(function(){
-    sortTable('t', $('#t thead tr td').index($("td:contains('Name')")))
-  })
-  $('#byNU').click(function(){
-    sortTable('t', $('#t thead tr td').index($("td:contains('NeededUntil')")))
-  })
   $('[id$=Dates]').click(checkDates)
   $('body').on('click', '.editTag', editTag)
   $('body').on('click', '.history', historyOfTag)
   $('body').on('click', '#changeDate', changeDate)
   $('#dateDialog').dialog()
   $('#dateDialog').dialog('close')
-  $('#historyDialog').dialog()
+  $('#historyDialog').dialog({width:450})
   $('#historyDialog').dialog('close')
+  $('#newDate').datepicker({dateFormat:'yy/mm/dd'})
+
+  $.fn.dataTableExt.oSort['mystring-asc'] = function(x,y) {
+    let retVal;
+    x = $.trim(x);
+    y = $.trim(y);
+    if (x==y) retVal= 0;
+    else if (x == "") retVal= 1;
+    else if (y == "") retVal= -1;
+    else if (x > y) retVal= 1;
+    else retVal = -1; // <- this was ming in version 1
+    return retVal;
+  }
+  $.fn.dataTableExt.oSort['mystring-desc'] = function(x,y) {
+    let retVal;
+    x = $.trim(x);
+    y = $.trim(y);
+    if (x==y) retVal= 0;
+    else if (x == "") retVal= -1;
+    else if (y == "") retVal= 1;
+    else if (x < y) retVal= 1;
+    else retVal = -1; // <- this was missing in version 1
+    return retVal;
+  }
+
 })
